@@ -3,14 +3,14 @@
 
 
 ####用法
-elect.exe --选项 要选的课程名字
-选项有:
-    公选 gx
-    公必 gb
-    专选 zx
-    专必 zb
+##elect.exe --选项 要选的课程名字
+##选项有:
+##    公选 gx
+##    公必 gb
+##    专选 zx
+##    专必 zb
 ###例子
-elect.exe --gx 大学生健康
+####elect.exe --gx 大学生健康
 
 ##说明
 使用NETID登录
