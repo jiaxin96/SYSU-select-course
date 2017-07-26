@@ -1,0 +1,14 @@
+// todo 表示要选课、退课、或者换课
+// 1表示选课 2表示退课 3表示换课
+// type 表示类型 公选gx  公必gb  专选zx  专必zb
+// want 想要的课 有先后顺序
+// dislike 要退或者换的课
+// type 为3的时候会退选dislike中的课去选want中的课
+// type 为1的时候dislike可以为空
+
+{
+    "todo": 1,
+    "type":"gx",
+    "want": ["大学生健康", "高校保健"],
+    "dislike":[]
+}
