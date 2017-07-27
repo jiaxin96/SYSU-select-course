@@ -6,7 +6,7 @@
 # Created Date: Wednesday, July 26th 2017, 4:42:28 pm
 # Author: JX
 # -----
-# Last Modified: Wed Jul 26 2017
+# Last Modified: Thu Jul 27 2017
 # Modified By: JX
 # 说明
 # 改进版本使用填入配置文件的方法可以换课和抢课
@@ -17,7 +17,6 @@
 # github地址:https://github.com/jiaxin96
 ###
 import urllib.request
-import requests
 from lxml import etree
 
 from urllib.request import urlopen
@@ -27,7 +26,7 @@ import requests
 import re
 import time
 import json
-
+import codecs
 
 
 class xuanke:
@@ -40,29 +39,49 @@ class xuanke:
     }
     s=requests.session()
     baseurl="https://cas.sysu.edu.cn"
+    def __init__(self):
+        try:
+            f = codecs.open("config.json", "r", "utf-8")
+            jo = json.loads(f.read())
+            f.close()
+            self.todo = jo["todo"]
+            self.type = jo["type"]
+            self.want = jo["want"]
+            self.dislike = jo["dislike"]
+            self.netid = jo["netid"]
+            self.passwd = jo["passwd"]
+        except:
+            print("没有找到config.json文件")
+            exit(0)
+        
     def login(self):
         loginurl='http://uems.sysu.edu.cn/elect/casLogin'
-        username=input("请输入你的NeltID：")
-        password=input("请输入你的密码：")
         html = requests.get(url=loginurl,headers=xuanke.headers)
         bs = BeautifulSoup(html.text, 'lxml')
         fm_value=bs.find("form",{"id":"fm1"})["action"]
         lt_value=bs.find("input",{"name":"lt"})["value"]
         ex_value=bs.find("input",{"name":"execution"})["value"]
         postdata={
-            'username':username,
-            'password':password,
+            'username':self.netid,
+            'password':self.passwd,
             'lt':lt_value,
             'execution':ex_value,
             '_eventId':'submit',
             'submit':'登录'
         }
         r=xuanke.s.post(xuanke.baseurl+fm_value,data=postdata, headers=xuanke.headers)
-        print("登录成功")
-        return r
+        title = etree.HTML(r.text).xpath("/html/head/title/text()")[0]
+
+        if (title and title == "教务选课"):
+            print("选课成功!")
+            return r
+        else:
+            print("登录失败!\n请检查config.json文件")
+            exit(0)
+            
 
         
-    def getType(self, args, courses_link):
+    def getType(self, courses_link):
             base_coursrs_url = r"http://uems.sysu.edu.cn/elect/s/"    
             # 专必
             zbUrl = "".join((base_coursrs_url, str(courses_link[0])))
@@ -72,18 +91,18 @@ class xuanke:
             gbUrl = "".join((base_coursrs_url, str(courses_link[2])))
             # 公选
             gxUrl = "".join((base_coursrs_url, str(courses_link[3])))
-            if args.get('--zb'):
+            if self.type == 'zb':
                 return zbUrl
-            elif args.get('--zx'):
+            elif self.type == 'zx':
                 return zxUrl
-            elif args.get('--gx'):
+            elif self.type == 'gx':
                 return gxUrl
-            elif args.get('--gb'):
+            elif self.type == 'gb':
                 return gbUrl
 
     def selectCourse(self,html,arguments):
         print("开始选课")
-        htmlTree = etree.HTML(html.text)    
+        htmlTree = etree.HTML(html.text)
         courses_link = htmlTree.xpath(r"/html/body/div[@id='content']/div[1]/div[@class='displayblock'][1]/div[@class='grid-container']/table[@class='grid']/tbody/tr/td[@class='c'][2]/a/@href")
         coursename = arguments.get("<courseName>")
         typeurl = xuanke.getType(self,arguments,courses_link)
@@ -107,7 +126,7 @@ class xuanke:
                 hasDone = True
                 break
         if hasDone==False:
-            print("已经选上此课")
+            print("已经选上此课 或者 已经没有此课程")
     
     def postDataToSelect(self,jxbh,xkjdszid,sid):
         print("提交数据")
@@ -144,10 +163,9 @@ class xuanke:
         
 
 
-def main():
-    
+def main():    
     xuanke1 = xuanke()
-    xuanke1.selectCourse(xuanke1.login(),arguments)
+    xuanke1.login()
     
 if __name__ == '__main__':
     main()
