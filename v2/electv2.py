@@ -50,6 +50,8 @@ class xuanke:
             self.dislike = jo["dislike"]
             self.netid = jo["netid"]
             self.passwd = jo["passwd"]
+            self.dislike_jxbhNUm = [] 
+            self.like_jxbhNUm = [] 
         except:
             print("没有找到config.json文件")
             exit(0)
@@ -73,7 +75,7 @@ class xuanke:
         title = etree.HTML(r.text).xpath("/html/head/title/text()")[0]
 
         if (title and title == "教务选课"):
-            print("选课成功!")
+            print("登录成功!")
             return r
         else:
             print("登录失败!\n请检查config.json文件")
@@ -100,39 +102,48 @@ class xuanke:
             elif self.type == 'gb':
                 return gbUrl
 
-    def selectCourse(self,html,arguments):
-        print("开始选课")
+    def course_handler(self,html):
         htmlTree = etree.HTML(html.text)
         courses_link = htmlTree.xpath(r"/html/body/div[@id='content']/div[1]/div[@class='displayblock'][1]/div[@class='grid-container']/table[@class='grid']/tbody/tr/td[@class='c'][2]/a/@href")
-        coursename = arguments.get("<courseName>")
-        typeurl = xuanke.getType(self,arguments,courses_link)
+
+        typeurl = xuanke.getType(self,courses_link)
 
         electHtml=xuanke.s.get(typeurl, headers=xuanke.headers)
+        
         gxtree = etree.HTML(electHtml.text)
         
-        courses_list = gxtree.xpath("/html/body/div[@id='content']/div[@class='grid-container'][2]/table[@id='courses']/tbody")[0]
-        names = courses_list.xpath("//tr/td[2]/a")
+        want_list = gxtree.xpath("/html/body/div[@id='content']/div[@class='grid-container'][2]/table[@id='courses']/tbody")[0]
+        want_names = want_list.xpath("//tr/td[2]/a")
         
+        dislike_list = gxtree.xpath("/html/body/div[2]/div[1]/table/tbody")[0]
+        dilike_names = dislike_list.xpath("//tr/td[2]/a")
+
         sid = electHtml.url.split('&')[-1].split("=")[-1]
         xkjdszid = gxtree.xpath('//input[@name="xkjdszid"]/@value')[0]
         
         hasDone = False
 
-        for nametag in names:
+        for nametag in want_names:
             name = nametag.text
-            if (name.find(str(coursename)) != -1):
-                jxbhNUm = nametag.xpath('../../td[1]/a/@jxbh')[0]
-                xuanke.postDataToSelect(self,jxbhNUm,xkjdszid,sid)
-                hasDone = True
-                break
-        if hasDone==False:
-            print("已经选上此课 或者 已经没有此课程")
-    
-    def postDataToSelect(self,jxbh,xkjdszid,sid):
+            for coursename in self.want:
+                if (name.find(str(coursename)) != -1):
+                    self.like_jxbhNUms.add(nametag.xpath('../../td[1]/a/@jxbh')[0])
+        for nametag in dilike_names:
+            name = nametag.text
+            for coursename in self.dislike:
+                if (name.find(str(coursename)) != -1):
+                    self.dislike_jxbhNUms.add(nametag.xpath('../../td[1]/a/@jxbh')[0])
+        postDataToSelect(self,xkjdszid,sid)
+
+
+    def postDataToSelect(self,xkjdszid,sid):
         print("提交数据")
-        postUrl = "http://uems.sysu.edu.cn/elect/s/elect"
-        postData = {
-            "jxbh":jxbh,
+        
+        unelect_postUrl = "http://uems.sysu.edu.cn/elect/s/unelect"
+        
+        elect_postUrl = "http://uems.sysu.edu.cn/elect/s/elect"
+        elect_postData = {
+            "jxbh":"",
             "xkjdszid":xkjdszid,
             "sid":sid
         }
@@ -150,15 +161,25 @@ class xuanke:
         }
         i = 0
         while(True):
-            f = xuanke.s.post(url=postUrl, headers=postHeaders, data=postData)
-            i = i + 1
-            jo = json.loads(f.text)
-            if (jo['err']['code'] == 0):
-                print("选课成功")
-                break
-            if (i % 10 == 0):
-                print("正在进行第%d次尝试！"% i)
-            time.sleep(2)
+            for jxbh in self.like_jxbhNUm:
+                elect_postData.jxbh = jxbh
+                f = xuanke.s.post(url=elect_postUrl, headers=postHeaders, data=elect_postData)
+                jo = json.loads(f.text)
+                if (jo['err']['code'] == 0):
+                    print("选课成功")
+                    del self.like_jxbhNUm[self.like_jxbhNUm.index(jxbh)]
+            if (self.like_jxbhNUm.count == 0):
+                print("选课完成")
+
+
+            for jxbh in self.dislike_jxbhNUm:
+                elect_postData.jxbh = jxbh
+                f = xuanke.s.post(url=unelect_postUrl, headers=postHeaders, data=elect_postData)
+                jo = json.loads(f.text)
+                if (jo['err']['code'] == 0):
+                    print("退课成功")
+                    del self.like_jxbhNUm[self.like_jxbhNUm.index(jxbh)]
+
 
         
 
