@@ -6,7 +6,7 @@
 # Created Date: Wednesday, July 26th 2017, 4:42:28 pm
 # Author: JX
 # -----
-# Last Modified: Thu Jul 27 2017
+# Last Modified: Tue Aug 15 2017
 # Modified By: JX
 # 说明
 # 改进版本使用填入配置文件的方法可以换课和抢课
@@ -41,7 +41,7 @@ class xuanke:
     baseurl="https://cas.sysu.edu.cn"
     def __init__(self):
         try:
-            f = codecs.open("config.json", "r", "utf-8")
+            f = codecs.open("../config.json", "r", "utf-8")
             jo = json.loads(f.read())
             f.close()
             self.todo = jo["todo"]
@@ -112,12 +112,17 @@ class xuanke:
         
         gxtree = etree.HTML(electHtml.text)
         
+        # //*[@id="courses"]/tbody/tr[1]/td[2]/a
         want_list = gxtree.xpath("/html/body/div[@id='content']/div[@class='grid-container'][2]/table[@id='courses']/tbody")[0]
         want_names = want_list.xpath("//tr/td[2]/a")
-        
-        dislike_list = gxtree.xpath("/html/body/div[2]/div[1]/table/tbody")[0]
-        dilike_names = dislike_list.xpath("//tr/td[2]/a")
+        # print(want_names[0].text)
 
+
+        # //*[@id="elected"]/tbody/tr[1]/td[3]/a
+        dislike_list = gxtree.xpath('//*[@id="elected"]/tbody')[0]
+        dilike_names = gxtree.xpath('//*[@id="elected"]/tbody/tr/td[3]/a')
+        # print(dilike_names[0].text)
+        
         sid = electHtml.url.split('&')[-1].split("=")[-1]
         xkjdszid = gxtree.xpath('//input[@name="xkjdszid"]/@value')[0]
         
@@ -127,13 +132,13 @@ class xuanke:
             name = nametag.text
             for coursename in self.want:
                 if (name.find(str(coursename)) != -1):
-                    self.like_jxbhNUms.add(nametag.xpath('../../td[1]/a/@jxbh')[0])
+                    self.like_jxbhNUm.append(nametag.xpath('../../td[1]/a/@jxbh')[0])
         for nametag in dilike_names:
             name = nametag.text
             for coursename in self.dislike:
                 if (name.find(str(coursename)) != -1):
-                    self.dislike_jxbhNUms.add(nametag.xpath('../../td[1]/a/@jxbh')[0])
-        postDataToSelect(self,xkjdszid,sid)
+                    self.dislike_jxbhNUm.append(nametag.xpath('../../td[1]/a/@jxbh')[0])
+        xuanke.postDataToSelect(self,xkjdszid,sid)
 
 
     def postDataToSelect(self,xkjdszid,sid):
@@ -161,32 +166,66 @@ class xuanke:
         }
         i = 0
         while(True):
-            for jxbh in self.like_jxbhNUm:
-                elect_postData.jxbh = jxbh
-                f = xuanke.s.post(url=elect_postUrl, headers=postHeaders, data=elect_postData)
-                jo = json.loads(f.text)
-                if (jo['err']['code'] == 0):
-                    print("选课成功")
-                    del self.like_jxbhNUm[self.like_jxbhNUm.index(jxbh)]
-            if (self.like_jxbhNUm.count == 0):
-                print("选课完成")
-
-
+            tjxb = []
             for jxbh in self.dislike_jxbhNUm:
-                elect_postData.jxbh = jxbh
+                elect_postData["jxbh"] = jxbh
+                tjxb.append(jxbh);
                 f = xuanke.s.post(url=unelect_postUrl, headers=postHeaders, data=elect_postData)
                 jo = json.loads(f.text)
                 if (jo['err']['code'] == 0):
                     print("退课成功")
-                    del self.like_jxbhNUm[self.like_jxbhNUm.index(jxbh)]
+                    del self.dislike_jxbhNUm[self.dislike_jxbhNUm.index(jxbh)]
 
+
+            for jxbh in self.like_jxbhNUm:
+                elect_postData["jxbh"] = jxbh
+                f = xuanke.s.post(url=elect_postUrl, headers=postHeaders, data=elect_postData)
+                jo = json.loads(f.text)
+                if (jo['err']['code'] == 0):
+                    del self.like_jxbhNUm[self.like_jxbhNUm.index(jxbh)]
+            
+            if (self.todo == 3):
+                for jxbh in tjxb:
+                    elect_postData["jxbh"] = jxbh
+                tjxb.append(jxbh);
+                f = xuanke.s.post(url=elect_postUrl, headers=postHeaders, data=elect_postData)
+                jo = json.loads(f.text)
+                if (jo['err']['code'] == 0):
+                    print("换课失败")
+                    self.dislike_jxbhNUm.append(jxbh)
+                    del tjxb[tjxb.index(jxbh)]
+
+            time.sleep(1)
+            if (i % 6 == 0):
+                print("第%d次" % i)
+            i = i + 1
+            
+            if (self.like_jxbhNUm.count == 0 and self.todo != 2):
+                break;
+                print("选课完成")
+            if (self.like_jxbhNUm.count == 0 and self.todo == 1):
+                break;
+                print("选课完成")
+
+            if (self.dislike_jxbhNUm.count == 0 and self.todo == 2):
+                break
+                print("退课成功")
+            if (self.like_jxbhNUm.count == 0 and self.todo == 2):
+                break
+                print("换课成功")
+
+            if (self.dislike_jxbhNUm.count == 0 and self.like_jxbhNUm.count == 0):
+                break
+                print("成功")
+
+            
 
         
 
 
 def main():    
     xuanke1 = xuanke()
-    xuanke1.login()
+    xuanke1.course_handler(xuanke1.login())
     
 if __name__ == '__main__':
     main()
