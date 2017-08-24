@@ -6,7 +6,7 @@
 # Created Date: Wednesday, July 26th 2017, 4:42:28 pm
 # Author: JX
 # -----
-# Last Modified: Tue Aug 15 2017
+# Last Modified: Thu Aug 24 2017
 # Modified By: JX
 # 说明
 # 改进版本使用填入配置文件的方法可以换课和抢课
